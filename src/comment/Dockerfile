@@ -1,9 +1,5 @@
 FROM ruby:2.2-alpine
 
-#RUN apk --no-cache --update add build-base && \
-#    bundle install && \
-#    apk del build-base
-
 ENV APP_HOME /app
 RUN mkdir $APP_HOME
 WORKDIR $APP_HOME
