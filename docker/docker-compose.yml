@@ -1,0 +1,101 @@
+version: '3.3'
+services:
+  post_db:
+    image: mongo:${MONGO_VERSION}
+    volumes:
+      - post_db:/data/db
+    networks:
+      back_net:
+        aliases:
+          - post_db
+          - comment_db
+  ui:
+    hostname: ui
+    image: ${DOCKERHUB_USERNAME}/ui:${UI_TAG}
+    container_name: ui_v_${UI_TAG}
+    ports:
+      - ${UI_HOST_PORT}:${UI_DOCKER_CONTAINER_PORT}/tcp
+    networks:
+      - front_net
+      - back_net
+  post:
+    hostname: post
+    image: ${DOCKERHUB_USERNAME}/post:${POST_VERSION_TAG}
+    networks:
+      back_net:
+        aliases:
+          - post
+  comment:
+    hostname: comment
+    container_name: comment_v_${COMMENT_VERSION_TAG}
+    image: ${DOCKERHUB_USERNAME}/comment:${COMMENT_VERSION_TAG}
+    networks:
+      back_net:
+        aliases:
+          - comment
+
+  prometheus:
+    image: ${DOCKERHUB_USERNAME}/prometheus:${PROMETHEUS_TAG}
+    ports:
+      - '9090:9090'
+    networks:
+      - back_net
+      - front_net
+    volumes:
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention=1d'
+
+  node-exporter:
+    image: prom/node-exporter:v0.15.2
+    user: root
+    networks:
+      - back_net
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.ignored-mount-points="^/(sys|proc|dev|host|etc)($$|/)"'
+
+  mongo_exporter:
+    restart: 'always'
+    ports:
+    - '9001:9001'
+    image: gpuliyar/mongo-exporter
+    container_name: mongo-exporter-container
+    environment:
+    - 'MONGO_SERVICE=post_db'
+    - 'MONGO_PORT=27017'
+    depends_on:
+    - post_db
+    networks:
+      back_net:
+        aliases:
+           - mongo_exporter
+
+  blackbox:
+    image: ${DOCKERHUB_USERNAME}/blackbox:${BLACKBOX_TAG}
+    container_name: blackbox
+    hostname: blackbox
+    ports:
+      - 9115:9115
+    restart: unless-stopped
+    command:
+      - "--config.file=/etc/blackbox/blackbox.yml"
+    environment:
+      TZ: "Europe/Moscow"
+    networks:
+      - back_net
+
+volumes:
+  post_db:
+  prometheus_data:
+
+networks:
+  front_net:
+  back_net:
