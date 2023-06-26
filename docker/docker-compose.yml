@@ -15,12 +15,32 @@ services:
     container_name: ui_v_${UI_TAG}
     ports:
       - ${UI_HOST_PORT}:${UI_DOCKER_CONTAINER_PORT}/tcp
+    environment:
+      - ZIPKIN_ENABLED=${ZIPKIN_ENABLED}
+    logging:
+      driver: "fluentd"
+      options:
+        fluentd-address: localhost:24224
+        tag: service.ui
     networks:
       - front_net
       - back_net
   post:
     hostname: post
     image: ${DOCKERHUB_USERNAME}/post:${POST_VERSION_TAG}
+    environment:
+      - POST_DATABASE_HOST=post_db
+      - POST_DATABASE=posts
+      - ZIPKIN_ENABLED=${ZIPKIN_ENABLED}
+    depends_on:
+      - post_db
+    ports:
+      - "5000:5000"
+    logging:
+      driver: "fluentd"
+      options:
+        fluentd-address: localhost:24224
+        tag: service.post
     networks:
       back_net:
         aliases:
@@ -29,6 +49,8 @@ services:
     hostname: comment
     container_name: comment_v_${COMMENT_VERSION_TAG}
     image: ${DOCKERHUB_USERNAME}/comment:${COMMENT_VERSION_TAG}
+    environment:
+      - ZIPKIN_ENABLED=${ZIPKIN_ENABLED}
     networks:
       back_net:
         aliases:
